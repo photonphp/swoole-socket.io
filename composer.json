@@ -1,0 +1,28 @@
+{
+    "name": "photonphp/swoole-socket.io",
+    "description": "基于swoole实现socket.io服务端",
+    "authors": [
+        {
+            "name": "Photon PHP",
+            "email": "admin@photonphp.com"
+        }
+    ],
+    "require": {
+        "php": "^7.2",
+        "ext-swoole": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhotonPHP\\Socket\\": "src"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PhotonPHP\\Socket\\SocketIoProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
