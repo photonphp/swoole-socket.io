@@ -1,6 +1,7 @@
 {
     "name": "photonphp/swoole-socket.io",
     "description": "基于Laravel 6和swoole实现socket.io服务端",
+    "license": "MIT",
     "authors": [
         {
             "name": "Photon PHP",
