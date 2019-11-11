@@ -8,6 +8,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use PhotonPHP\Socket\Facades\SocketIo;
+use PhotonPHP\Socket\Facades\SocketIoClient;
 use Swoole\WebSocket\Server as WebSocketServer;
 
 class SocketIoServer
@@ -22,7 +23,7 @@ class SocketIoServer
 
     public function start(Command $Command)
     {
-        if ($this->isRunning()) {
+        if (SocketIoClient::isRunning()) {
             if ($Command->confirm('socket.io 服务已启动，是否重启?')) {
                 $this->stop($Command);
             } else {
@@ -45,10 +46,12 @@ class SocketIoServer
 
         $socketioHandler->bindEngine($server);
 
-        $server->on('start', function ($socket) use ($Command) {
+        $server->on('Start', function ($socket) use ($Command) {
             Cache::put('swoole:socket.io.pid', [$socket->master_pid, $socket->manager_pid]);
+            Cache::put('swoole:socket.io.increment.count', 0);
+            Cache::put('swoole:socket.io.connect.count', 0);
         });
-        $server->on('shutdown', function ($socket) use ($Command) {
+        $server->on('Shutdown', function ($socket) use ($Command) {
             $Command->info('socket.io 服务已关闭');
         });
         $server->on('WorkerStart', function ($serv, $worker_id) use ($Command) {
@@ -57,6 +60,21 @@ class SocketIoServer
         $server->on('WorkerStop', function ($serv, $worker_id) use ($Command) {
             $Command->info('socket.io 服务进程:' . ($worker_id + 1) . "\t已关闭");
         });
+
+        $server->on('Packet', function ($server, string $data, array $client_info) {
+            var_dump($client_info);
+        });
+
+        $server->on('connect', function ($serv, $fd) {
+            Cache::increment('swoole:socket.io.increment.count');
+            Cache::increment('swoole:socket.io.connect.count');
+        });
+        $server->on('close', function ($serv, $fd) {
+            Cache::decrement('swoole:socket.io.connect.count');
+        });
+        
+        
+
 
 
 
@@ -67,7 +85,7 @@ class SocketIoServer
     }
     public function stop(Command $Command)
     {
-        if (!$this->isRunning()) {
+        if (!SocketIoClient::isRunning()) {
             $Command->error('socket.io 服务未启动');
 
             return;
@@ -85,7 +103,7 @@ class SocketIoServer
     }
     public function restart(Command $Command)
     {
-        if ($this->isRunning()) {
+        if (SocketIoClient::isRunning()) {
             $this->stop($Command);
         }
 
@@ -93,8 +111,22 @@ class SocketIoServer
     }
     public function stats(Command $Command)
     {
-        //$server->stats();
+        $table = [
+            'PHP 版本' => phpversion(),
+            'Swoole 版本' => swoole_version(),
+            'socket.io 状态' => SocketIoClient::isRunning() ? '启动' : '关闭',
+            'socket.io 服务' => Arr::get($this->config, 'host', '0.0.0.0'),
+            'socket.io 端口' => Arr::get($this->config, 'port', 9501),
+            '累计链接' => SocketIoClient::getCountIncrement(),
+            '当前链接' => SocketIoClient::getCountConnect()
+
+        ];
+
+        foreach ($table as $key => $value) {
+            $Command->info("{$key}\t{$value}");
+        }
     }
+
 
     /**
      * Kill process.
@@ -115,7 +147,7 @@ class SocketIoServer
             $start = time();
 
             do {
-                if (!$this->isRunning()) {
+                if (!SocketIoClient::isRunning()) {
                     break;
                 }
 
@@ -123,29 +155,10 @@ class SocketIoServer
             } while (time() < $start + $wait);
         }
 
-        return $this->isRunning();
+        return SocketIoClient::isRunning();
     }
 
 
-    protected function isRunning()
-    {
-        $pids = Cache::get('swoole:socket.io.pid', []);
-
-        if (!count($pids)) {
-            return false;
-        }
-
-        $masterPid = $pids[0] ?? null;
-        $managerPid = $pids[1] ?? null;
-
-        if ($managerPid) {
-            // Swoole process mode
-            return $masterPid && $managerPid && Process::kill((int) $managerPid, 0);
-        }
-
-        // Swoole base mode, no manager process
-        return $masterPid && Process::kill((int) $masterPid, 0);
-    }
 
     protected function getServer(): WebSocketServer
     {

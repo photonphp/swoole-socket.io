@@ -35,6 +35,8 @@ class SocketIoProvider extends ServiceProvider
         });
 
         $this->app->alias(SocketIo::class, 'socket.io');
+        $this->app->alias(SocketIoClient::class, 'socket.io.client');
+        
 
         $routes=base_path('routes/socket.io.php');
         if(file_exists($routes)){
