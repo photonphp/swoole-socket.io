@@ -97,14 +97,3 @@ use PhotonPHP\Socket\Facades\SocketIo;
 SocketIo::on($event, $callback);// 绑定接收消息
 
 ~~~
-
-##  异步操作
-PhotonPHP\Socket\Facades\SocketIoClient
-
-~~~php
-use PhotonPHP\Socket\Facades\SocketIoClient;
-
-SocketIo::isRunning();// 检测是socket.io服务是否启动
-SocketIo::getCountIncrement();// 返回累计链接数
-SocketIo::getCountConnect();// 返回当前链接数
-~~~
